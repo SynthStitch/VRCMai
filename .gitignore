@@ -1,0 +1,27 @@
+# Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/ClientSimStorage/
+/Poi/
+/Thry/
+*.csproj
+*.sln
+*.pidb
+*.userprefs
+.vs/
+.idea/
+
+# VPM packages (restored by VCC from vpm-manifest.json)
+/Packages/*/
+!/Packages/manifest.json
+!/Packages/packages-lock.json
+!/Packages/vpm-manifest.json
+
+# third-party content, not redistributed
+/Assets/Maimai/Charts/
+/Assets/Maimai/Charts.meta
