@@ -80,7 +80,7 @@ public class MaiGame : UdonSharpBehaviour
     [UdonSynced] bool playing;
     [UdonSynced] int song, level = 4;
     [UdonSynced] int sCombo, sCrit, sPerf, sGreat, sGood, sMiss; // owner's result, for spectators
-    [UdonSynced] int sLost, sLostB, sDxLost, sMaxCombo;
+    [UdonSynced] int sLost, sLostB, sDxLost, sMaxCombo, sFast, sLate;
 
     const float F = 1f / 60f; // MajdataPlay frame
     string[] diffNames = { "EASY", "BASIC", "ADVANCED", "EXPERT", "MASTER", "Re:MASTER", "UTAGE" };
@@ -88,7 +88,11 @@ public class MaiGame : UdonSharpBehaviour
     string[] gradeCols = { "#FFE36BFF", "#FFA640FF", "#FF7AD0FF", "#6BE37AFF", "#9A9A9AFF" };
     string[] diffCols = { "#5FC4FF", "#55D23A", "#FFBA01", "#FF6B6B", "#B865F0", "#E3C2FF", "#FF6FFD" };
     float judgeAt, lastRing = -1f;
-    int menuPage, setRow;            // 0 song select, 1 settings (local)
+    int menuPage, setRow;            // 0 song select, 1 settings, 2 results (local)
+    int fast, late;                  // non-critical judgements early / late
+    float resultAt;
+    bool wasPlaying;
+    const float ResultSec = 15f;     // results auto-close (spectators can't press to continue)
     string[] hints0 = { "LV +", "NEXT", "NEXT", "OK", "OK", "PREV", "PREV", "LV -" };
     string[] hints1 = { "UP", "+", "+", "START", "BACK", "-", "-", "DOWN" };
 
@@ -212,6 +216,7 @@ public class MaiGame : UdonSharpBehaviour
 
     void MenuPress(int lane)
     {
+        if (menuPage == 2) { menuPage = 0; UpdateHud(); return; } // any button closes the results
         if (menuPage == 1) { SettingsPress(lane); return; }
         int n = songTitles.Length;
         if (lane == 2 || lane == 3) { song = (song + 1) % n; FixLevel(1); }
@@ -394,7 +399,8 @@ public class MaiGame : UdonSharpBehaviour
     {
         startServerMs = Networking.GetServerTimeInMilliseconds() + (int)(leadInSec * 1000);
         playing = true;
-        sCombo = sCrit = sPerf = sGreat = sGood = sMiss = sLost = sLostB = sDxLost = sMaxCombo = 0;
+        sCombo = sCrit = sPerf = sGreat = sGood = sMiss = sLost = sLostB = sDxLost = sMaxCombo = sFast = sLate = 0;
+        menuPage = 0;
         RequestSerialization();
         ResetRun();
     }
@@ -408,7 +414,15 @@ public class MaiGame : UdonSharpBehaviour
         actCount = 0;
         Snap();
         RequestSerialization();
+        ShowResults();
         StopLocal();
+    }
+
+    void ShowResults()
+    {
+        menuPage = 2;
+        resultAt = Time.time;
+        lastJudge = "";
     }
 
     void StopLocal()
@@ -431,6 +445,8 @@ public class MaiGame : UdonSharpBehaviour
     {
         if (song != loadedSong || level != loadedLevel) Select();
         if (playing && startServerMs != localStart) ResetRun();
+        if (!playing && wasPlaying) ShowResults();
+        wasPlaying = playing;
         if (!playing && music.isPlaying) StopLocal();
         if (!Networking.IsOwner(gameObject)) UpdateHud();
     }
@@ -439,7 +455,8 @@ public class MaiGame : UdonSharpBehaviour
     {
         localStart = startServerMs;
         head = 0; drawHead = 0; actCount = 0; lastHoldT = -1f;
-        crit = perf = great = good = miss = combo = maxCombo = lost = lostB = dxLost = 0;
+        crit = perf = great = good = miss = combo = maxCombo = lost = lostB = dxLost = fast = late = 0;
+        wasPlaying = true;
         lastJudge = "";
         for (int i = 0; i < count; i++) { nState[i] = 0; nReleased[i] = 0; nWait[i] = 0; nReleasing[i] = false; }
         ResetSlides();
@@ -486,6 +503,7 @@ public class MaiGame : UdonSharpBehaviour
         bool owner = Networking.IsOwner(gameObject);
         if (!playing)
         {
+            if (menuPage == 2 && Time.time - resultAt > ResultSec) { menuPage = 0; UpdateHud(); }
             if (owner && songTitles.Length > 0) ReadInput(0f);
             return;
         }
@@ -644,6 +662,7 @@ public class MaiGame : UdonSharpBehaviour
         sState[s] = 2;
         sHid[s] = 1f;
         Count(g, SlideBase(s), (sFlags[s] & 1) != 0);
+        FastLate(g, err);
         ShowJudge(g, err, "SLIDE ", true);
     }
 
@@ -959,7 +978,14 @@ public class MaiGame : UdonSharpBehaviour
     {
         nState[i] = 2;
         Count(g, NoteBase(i), (nFlags[i] & 1) != 0);
+        FastLate(g, err);
         ShowJudge(g, err, "", true);
+    }
+
+    void FastLate(int g, float err)
+    {
+        if (g == 0 || g == 4 || err < -900f) return;
+        if (err < 0) fast++; else late++;
     }
 
     // b = base score of the note. Normal: P 100% / GR 80% / GD 50%. Break: CP/P 2500, GR 2000, GD 1000 + bonus CP 100 / P 75 / GR 40 / GD 30.
@@ -982,7 +1008,7 @@ public class MaiGame : UdonSharpBehaviour
     void Snap()
     {
         sCombo = combo; sCrit = crit; sPerf = perf; sGreat = great; sGood = good; sMiss = miss;
-        sLost = lost; sLostB = lostB; sDxLost = dxLost; sMaxCombo = maxCombo;
+        sLost = lost; sLostB = lostB; sDxLost = dxLost; sMaxCombo = maxCombo; sFast = fast; sLate = late;
     }
 
     void ShowJudge(int g, float err, string prefix, bool showMs)
@@ -1075,18 +1101,31 @@ public class MaiGame : UdonSharpBehaviour
         if (!playing && hintTexts != null && hintTexts.Length == 8)
             for (int k = 0; k < 8; k++)
             {
-                bool go = menuPage == 0 ? (k == 3 || k == 4) : k == 3;
-                hintTexts[k].text = "<color=" + (go ? Acc : "#D8D8D8") + ">" + (menuPage == 0 ? hints0[k] : hints1[k]) + "</color>";
+                bool go = menuPage == 1 ? k == 3 : (k == 3 || k == 4);
+                string h = menuPage == 0 ? hints0[k] : menuPage == 1 ? hints1[k] : (go ? "NEXT" : "");
+                hintTexts[k].text = "<color=" + (go ? Acc : "#D8D8D8") + ">" + h + "</color>";
             }
 
         // ----- main screen ----- (play: judgement high, combo centre; menu: card text top, big number bottom)
-        if (centerT != null) centerT.localPosition = new Vector3(0, radius * (playing ? 0.32f : 0.18f), -0.004f);
-        if (bigT != null) bigT.localPosition = new Vector3(0, radius * (playing ? -0.12f : -0.38f), -0.004f);
+        bool res = !playing && menuPage == 2;
+        if (centerT != null) centerT.localPosition = new Vector3(0, radius * (playing ? 0.32f : res ? 0.24f : 0.18f), -0.004f);
+        if (bigT != null) bigT.localPosition = new Vector3(0, radius * (playing ? -0.12f : res ? -0.4f : -0.38f), -0.004f);
         if (playing)
         {
             int cb = owner ? combo : sCombo;
             center.text = owner ? lastJudge : "";
             if (bigText != null) bigText.text = cb > 1 ? cb + "\n<size=22%><color=" + Dim + ">COMBO</color></size>" : "";
+        }
+        else if (res)
+        {
+            int fa = owner ? fast : sFast, la = owner ? late : sLate;
+            center.text = "<size=55%>" + Label("03", "RESULT") + "</size>\n" +
+                          "<b>" + songTitles[song] + "</b>\n" +
+                          "<size=55%><color=" + diffCols[level] + ">●</color> " + diffNames[level] + " " + lv + "</size>\n" +
+                          "<size=170%><color=#FFC94D><b>" + Rank(pct) + "</b></color></size>" + Badge(p, gr, gd, m) + "\n" +
+                          "<size=55%><color=" + Dim + ">DX </color>" + dx + "<color=" + Dim + ">/" + dxMax + "   MAX COMBO </color>" + mc + "\n" +
+                          "<color=#6FB8FF>FAST</color> " + fa + "   <color=#FF5A36>LATE</color> " + la + "</size>";
+            if (bigText != null) bigText.text = pct.ToString("0.0000") + "<size=45%>%</size>";
         }
         else if (menuPage == 0)
         {
@@ -1106,7 +1145,7 @@ public class MaiGame : UdonSharpBehaviour
         if (center == hud) return;
 
         // ----- top screen: 01 song card / 02 achievement card / 03 judge card -----
-        hud.text = "<size=55%>" + Label("01", playing ? "NOW PLAYING" : "SELECT SONG") + (playing && !owner ? "  <color=" + Acc + ">●</color> <color=" + Dim + ">SPECTATING</color>" : "") + "</size>\n" +
+        hud.text = "<size=55%>" + Label("01", playing ? "NOW PLAYING" : res ? "RESULT" : "SELECT SONG") + (playing && !owner ? "  <color=" + Acc + ">●</color> <color=" + Dim + ">SPECTATING</color>" : "") + "</size>\n" +
                    "<b>" + songTitles[song] + "</b>\n" +
                    "<size=60%><color=" + Dim + ">" + Short(Artist(), 34) + "</color></size>\n" +
                    "<size=60%><color=" + diffCols[level] + ">●</color> " + diffNames[level] + " " + lv + "</size>";
