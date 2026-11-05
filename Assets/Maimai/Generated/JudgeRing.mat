@@ -25,8 +25,9 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _Progress: 0.2433979
+    - _Progress: 0
     - _Shape: 6
+    - _Spread: 0
     - _Thick: 0.28
     m_Colors:
     - _Accent: {r: 1, g: 0.353, b: 0.212, a: 1}

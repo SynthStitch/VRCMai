@@ -1,7 +1,7 @@
 // Stage 2/3 setup: note visuals on the screen render.
 //  - 18 NoteShape materials (kind x variant): tap ring, slide-head star, hold hexagon, hold bar, touch marker, slide chevron;
 //    variants normal / each (yellow) / break (orange)
-//  - quad pools under Playfield: 64 lane notes, 16 hold bars, 40 touch markers, 12 slide slots (40 chevrons + 3 stars each)
+//  - quad pools under Playfield: 64 lane notes, 16 hold bars, 40 touch markers, 12 slide slots (100 chevrons + 3 stars each)
 //  - touch sensor centroids (from the baked sensor glow meshes)
 using System.Collections.Generic;
 using System.IO;
@@ -59,8 +59,8 @@ public static class MaiNotesSetup
         game.pool = Pool(play.transform, "Note", 64);
         game.bars = Pool(play.transform, "Bar", 16);
         game.touchPool = Pool(play.transform, "Touch", 40);
-        game.arrowsPerSlot = 40;
-        game.slideArrows = Pool(play.transform, "Arrow", 12 * 40);
+        game.arrowsPerSlot = 100;
+        game.slideArrows = Pool(play.transform, "Arrow", 12 * 100);
         game.slideStars = Pool(play.transform, "SlideStar", 12 * 3);
         game.noteMats = mats;
 

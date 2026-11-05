@@ -226,7 +226,7 @@ public static class SimaiSlides
         len = 0;
         var cum = new double[src.Count];
         for (int i = 1; i < src.Count; i++) cum[i] = len += Dist(src[i - 1], src[i]);
-        int n = Math.Max(2, Math.Min(maxPts, (int)Math.Round(len / 0.1) + 1));
+        int n = Math.Max(2, Math.Min(maxPts, (int)Math.Round(len / 0.065) + 1));
         var o = new List<(double, double)>();
         int j = 1;
         for (int k = 0; k < n; k++)
@@ -240,7 +240,7 @@ public static class SimaiSlides
     }
 
     // body = text after the head (e.g. "-5[8:1]" or "q7-2[1:1]b"); start = head lane; headSec = head time
-    public static Slide Build(string body, int start, double headSec, double bpm, int maxPts = 40)
+    public static Slide Build(string body, int start, double headSec, double bpm, int maxPts = 100)
     {
         var sl = new Slide();
         // ---- tokenize into segments ----

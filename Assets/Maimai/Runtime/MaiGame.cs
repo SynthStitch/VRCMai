@@ -58,7 +58,7 @@ public class MaiGame : UdonSharpBehaviour
     [Header("Slides (filled by Maimai/Setup Slides (Stage 3))")]
     public Transform[] slideArrows;  // slot * arrowsPerSlot chevrons
     public Transform[] slideStars;   // slot * 3 (wifi has three stars)
-    public int arrowsPerSlot = 40;
+    public int arrowsPerSlot = 100;
 
     [Header("Input")]
     public Transform[] balls;        // hand-ball pickups (avatar agnostic input)
@@ -116,6 +116,7 @@ public class MaiGame : UdonSharpBehaviour
     bool audioStarted;
     float nextSync;
     Renderer[] poolR, barR, touchR;
+    MaterialPropertyBlock touchMpb;
     long sensorMask;
     float lastHoldT = -1f;
     int buttonMask;
@@ -138,6 +139,7 @@ public class MaiGame : UdonSharpBehaviour
         poolR = Renderers(pool);
         barR = Renderers(bars);
         touchR = Renderers(touchPool);
+        touchMpb = new MaterialPropertyBlock();
         InitSlots();
         handLane = new int[balls.Length];
         ballPickups = new VRC_Pickup[balls.Length];
@@ -722,7 +724,7 @@ public class MaiGame : UdonSharpBehaviour
         slotHid[k] = -1f;
         int variant = (sFlags[s] & 1) != 0 ? 2 : sEach[s] ? 1 : 0;
         int b = k * arrowsPerSlot, a = 0;
-        float asz = noteSize * 0.55f;
+        float asz = noteSize * 0.6f;
         for (int p = 0; p < sPathN[s]; p++)
         {
             int n = pLen[s * 3 + p], f0 = pFirst[s * 3 + p];
@@ -786,9 +788,11 @@ public class MaiGame : UdonSharpBehaviour
                 float u = Mathf.Clamp01(dt / touchApproach);
                 Transform tt = touchPool[ts];
                 tt.localPosition = new Vector3(x, y, -0.012f);
-                float s = noteSize * (1.1f + 1.4f * u);
+                float s = noteSize * 2.4f; // fixed; the shader closes the 4 wedges in as u -> 0
                 tt.localScale = new Vector3(s, s, 1f);
                 touchR[ts].sharedMaterial = noteMats[12 + variant];
+                touchMpb.SetFloat("_Spread", u);
+                touchR[ts].SetPropertyBlock(touchMpb);
                 if (ts >= lastTouch) tt.gameObject.SetActive(true);
                 ts++;
                 continue;
@@ -801,29 +805,25 @@ public class MaiGame : UdonSharpBehaviour
             float p = Mathf.Clamp(d, Spawn, 1f);
             int kind = nType[i] == 3 ? 1 : nType[i] == 2 ? 2 : 0;
             Transform tr = pool[ns];
-            tr.localPosition = new Vector3(sx * radius * p, sy * radius * p, -0.01f);
             float sz = noteSize * (d < Spawn ? Mathf.Clamp01(d * 1.92f + 0.51f) : 1f);
-            tr.localScale = new Vector3(sz, sz, 1f);
-            tr.localRotation = kind == 1 ? Quaternion.Euler(0, 0, spin) : Quaternion.identity;
+            if (kind == 2)
+            {
+                // one stretched hexagon from tail to head (MajdataPlay HoldDrop), no separate body bar
+                float pt = Mathf.Clamp(1f - (start + nDur[i] / 1000f - t) * noteV, Spawn, 1f);
+                float mid = (p + pt) * 0.5f * radius;
+                tr.localPosition = new Vector3(sx * mid, sy * mid, -0.01f);
+                tr.localScale = new Vector3(sz, sz + (p - pt) * radius, 1f);
+                tr.localRotation = Quaternion.Euler(0, 0, -(22.5f + 45f * (nLane[i] - 1)));
+            }
+            else
+            {
+                tr.localPosition = new Vector3(sx * radius * p, sy * radius * p, -0.01f);
+                tr.localScale = new Vector3(sz, sz, 1f);
+                tr.localRotation = kind == 1 ? Quaternion.Euler(0, 0, spin) : Quaternion.identity;
+            }
             poolR[ns].sharedMaterial = noteMats[kind * 3 + variant];
             if (ns >= lastNotes) tr.gameObject.SetActive(true);
             ns++;
-
-            if (isHold && bs < bars.Length)
-            {
-                float pt = Mathf.Clamp(1f - (start + nDur[i] / 1000f - t) * noteV, Spawn, 1f);
-                if (p - pt > 0.001f)
-                {
-                    Transform b = bars[bs];
-                    float mid = (p + pt) * 0.5f * radius;
-                    b.localPosition = new Vector3(sx * mid, sy * mid, -0.008f);
-                    b.localRotation = Quaternion.Euler(0, 0, -(22.5f + 45f * (nLane[i] - 1)));
-                    b.localScale = new Vector3(noteSize * 0.7f, (p - pt) * radius, 1f);
-                    barR[bs].sharedMaterial = noteMats[9 + variant];
-                    if (bs >= lastBars) b.gameObject.SetActive(true);
-                    bs++;
-                }
-            }
         }
         HideFrom(pool, ns, lastNotes); lastNotes = ns;
         HideFrom(bars, bs, lastBars); lastBars = bs;
