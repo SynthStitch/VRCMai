@@ -21,18 +21,16 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Button
-  m_Shader: {fileID: 4800000, guid: 9294844b15dca184d914a632279b24e1, type: 3}
-  m_Parent: {fileID: 2100000, guid: daa4072a60e454e4789e6102c2ba44fa, type: 2}
+  m_Shader: {fileID: 4800000, guid: df12117ecd77c31469c224178886498e, type: 3}
+  m_Parent: {fileID: 2100000, guid: 292fd1ae56cb7694eabdd3dc9ddf1997, type: 2}
   m_ModifiedSerializedProperties: 16
-  m_ValidKeywords:
-  - UNITY_UI_CLIP_RECT
+  m_ValidKeywords: []
   m_InvalidKeywords: []
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
-  m_CustomRenderQueue: 2460
-  stringTagMap:
-    RenderType: TransparentCutout
+  m_CustomRenderQueue: 3000
+  stringTagMap: {}
   disabledShaderPasses: []
   m_LockedProperties: 
   m_SavedProperties:
@@ -44,6 +42,6 @@ Material:
     - _DstBlend: 10
     - _TransparentMode: 2
     m_Colors:
-    - _BaseColor: {r: 0.6886792, g: 0.6886792, b: 0.6886792, a: 1}
-    - _Color: {r: 0.6886792, g: 0.6886792, b: 0.6886792, a: 1}
+    - _BaseColor: {r: 0.51572317, g: 0.51572317, b: 0.51572317, a: 1}
+    - _Color: {r: 0.51572317, g: 0.51572317, b: 0.51572317, a: 1}
   m_BuildTextureStacks: []

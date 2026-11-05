@@ -82,7 +82,8 @@ public class MaiGame : UdonSharpBehaviour
     [UdonSynced] int level = 4;
 
     [Header("2 player")]
-    public MaiGame leader;           // set on P2 only: P1's cabinet. P2 can JOIN to play P1's song in sync.
+    public MaiGame leader;
+    public MaiScoreboard board;      // room TV: gets every result (single or VS)           // set on P2 only: P1's cabinet. P2 can JOIN to play P1's song in sync.
     [UdonSynced] bool joined, linked; // joined = waiting for P1's start; linked = this run follows P1 (music muted)
     int leaderStart;
     [UdonSynced] int sCombo, sCrit, sPerf, sGreat, sGood, sMiss; // owner's result, for spectators
@@ -126,7 +127,7 @@ public class MaiGame : UdonSharpBehaviour
     bool audioStarted;
     float nextSync;
     Renderer[] poolR, barR, touchR;
-    MaterialPropertyBlock touchMpb;
+    MaterialPropertyBlock touchMpb, noteMpb;
     long sensorMask;
     float lastHoldT = -1f;
     int buttonMask;
@@ -150,6 +151,7 @@ public class MaiGame : UdonSharpBehaviour
         barR = Renderers(bars);
         touchR = Renderers(touchPool);
         touchMpb = new MaterialPropertyBlock();
+        noteMpb = new MaterialPropertyBlock();
         InitSlots();
         handLane = new int[balls.Length];
         ballPickups = new VRC_Pickup[balls.Length];
@@ -456,6 +458,7 @@ public class MaiGame : UdonSharpBehaviour
         menuPage = 2;
         resultAt = Time.time;
         lastJudge = "";
+        ReportBoard();
     }
 
     void StopLocal()
@@ -867,6 +870,7 @@ public class MaiGame : UdonSharpBehaviour
                 float mid = (p + pt) * 0.5f * radius;
                 tr.localPosition = new Vector3(sx * mid, sy * mid, -0.01f);
                 tr.localScale = new Vector3(sz, sz + (p - pt) * radius, 1f);
+                noteMpb.SetFloat("_Len", sz > 0.0001f ? 1f + (p - pt) * radius / sz : 1f);
                 tr.localRotation = Quaternion.Euler(0, 0, -(22.5f + 45f * (nLane[i] - 1)));
             }
             else
@@ -874,8 +878,10 @@ public class MaiGame : UdonSharpBehaviour
                 tr.localPosition = new Vector3(sx * radius * p, sy * radius * p, -0.01f);
                 tr.localScale = new Vector3(sz, sz, 1f);
                 tr.localRotation = kind == 1 ? Quaternion.Euler(0, 0, spin) : Quaternion.identity;
+                noteMpb.SetFloat("_Len", 1f);
             }
             poolR[ns].sharedMaterial = noteMats[kind * 3 + variant];
+            poolR[ns].SetPropertyBlock(noteMpb);
             if (ns >= lastNotes) tr.gameObject.SetActive(true);
             ns++;
         }
@@ -1015,6 +1021,26 @@ public class MaiGame : UdonSharpBehaviour
         Count(g, NoteBase(i), (nFlags[i] & 1) != 0);
         FastLate(g, err);
         ShowJudge(g, err, "", true);
+    }
+
+    // runs on every client (owner from local counts, others from the synced ones), so the TV needs no sync
+    void ReportBoard()
+    {
+        if (board == null || songTitles.Length == 0) return;
+        bool owner = Networking.IsOwner(gameObject);
+        int c = owner ? crit : sCrit, p = owner ? perf : sPerf, gr = owner ? great : sGreat, gd = owner ? good : sGood, m = owner ? miss : sMiss;
+        float pct = Achievement(owner ? lost : sLost, owner ? lostB : sLostB);
+        int dx = dxMax - (owner ? dxLost : sDxLost), mc = owner ? maxCombo : sMaxCombo, fa = owner ? fast : sFast, la = owner ? late : sLate;
+        VRCPlayerApi pl = Networking.GetOwner(gameObject);
+        string who = pl != null ? pl.displayName : "";
+        string text = "<b>" + songTitles[song] + "</b>\n" +
+                      "<size=75%><color=" + diffCols[level] + ">●</color> " + diffNames[level] + " " + levelNames[song * 7 + level] + "</size>\n" +
+                      "<size=150%><color=#FFC94D><b>" + Rank(pct) + "</b></color></size>" + Badge(p, gr, gd, m) + "\n" +
+                      "<size=75%><color=" + Dim + ">DX </color>" + dx + "<color=" + Dim + ">/" + dxMax + "   MAX COMBO </color>" + mc + "\n" +
+                      "<color=#FFE36B>CRIT</color> " + c + "  <color=#FFA640>PERF</color> " + p + "  <color=#FF7AD0>GREAT</color> " + gr +
+                      "  <color=#6BE37A>GOOD</color> " + gd + "  <color=" + Dim + ">MISS</color> " + m + "\n" +
+                      "<color=#6FB8FF>FAST</color> " + fa + "   <color=#FF5A36>LATE</color> " + la + "</size>";
+        board.Report(leader != null ? 1 : 0, who, text, pct, linked);
     }
 
     void FastLate(int g, float err)

@@ -12,6 +12,7 @@ Shader "Maimai/NoteShape"
         _Progress ("Ring progress", Range(0, 1)) = 0
         _Spread ("Touch spread (per renderer)", Range(0, 1)) = 0
         _Skin ("Use sprite", Float) = 0
+        _Len ("Hold length / width (per renderer)", Float) = 1
         _MainTex ("Sprite", 2D) = "white" {}
         _DotTex ("Touch dot sprite", 2D) = "white" {}
     }
@@ -29,7 +30,7 @@ Shader "Maimai/NoteShape"
             #include "UnityCG.cginc"
 
             fixed4 _Color, _Accent;
-            float _Shape, _Thick, _Progress, _Spread, _Skin;
+            float _Shape, _Thick, _Progress, _Spread, _Skin, _Len;
             sampler2D _MainTex, _DotTex;
 
             fixed4 over(fixed4 dst, fixed4 src) { return fixed4(lerp(dst.rgb, src.rgb, src.a), src.a + dst.a * (1 - src.a)); }
@@ -46,7 +47,7 @@ Shader "Maimai/NoteShape"
             {
                 if (s == 2)   // hold: top/bottom halves of the sprite stay square, the middle row stretches
                 {
-                    float L = length(unity_ObjectToWorld._m01_m11_m21) / length(unity_ObjectToWorld._m00_m10_m20);
+                    float L = _Len; // length/width, set per renderer (object scale is lost when Unity batches the quads)
                     float yy = (uv.y - 0.5) * L, dt = L * 0.5 - yy, db = yy + L * 0.5;
                     float tv = dt < 0.5 ? 1 - dt : db < 0.5 ? db : 0.5;
                     return tex2Dgrad(_MainTex, float2(uv.x, tv), ddx(uv), ddy(uv));
@@ -99,7 +100,7 @@ Shader "Maimai/NoteShape"
                 }
                 else if (s == 2)       // hold: hexagon ring pointed along the lane (+y), sides stretch with the quad's y scale
                 {
-                    float L = length(unity_ObjectToWorld._m01_m11_m21) / length(unity_ObjectToWorld._m00_m10_m20);
+                    float L = _Len; // length/width, set per renderer (object scale is lost when Unity batches the quads)
                     float2 q = float2(abs(p.x), max(abs(p.y * L) - (L - 1), 0));
                     float d = max(q.y * 0.866 + q.x * 0.5, q.x) * 1.04; // tip stays inside the quad
                     float ad = fwidth(d) * 1.5;
