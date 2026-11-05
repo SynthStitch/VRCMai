@@ -36,3 +36,7 @@
 # AstroDX sample skin (no license, local only)
 /Assets/Maimai/Skin/
 /Assets/Maimai/Skin.meta
+
+# Gaming Room (third-party room asset, not redistributed)
+/Assets/Gaming Room/
+/Assets/Gaming Room.meta

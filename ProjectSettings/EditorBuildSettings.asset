@@ -4,7 +4,10 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/MaiWorld.unity
+    guid: e3b119f5d1397c94db976494e464f815
   m_configObjects:
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 721b3bd3d7a54924eae1cb74ee04e412,
       type: 2}
