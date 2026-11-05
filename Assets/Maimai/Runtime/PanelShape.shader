@@ -11,7 +11,7 @@ Shader "Maimai/Panel"
     }
     SubShader
     {
-        Tags { "Queue"="Transparent-1" "RenderType"="Transparent" "IgnoreProjector"="True" }
+        Tags { "Queue"="Transparent-1" "RenderType"="Transparent" "IgnoreProjector"="True" "DisableBatching"="True" }
         Blend SrcAlpha OneMinusSrcAlpha
         ZWrite Off
         Cull Off
