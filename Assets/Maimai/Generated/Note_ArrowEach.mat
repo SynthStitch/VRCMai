@@ -27,6 +27,7 @@ Material:
     m_Floats:
     - _Progress: 0
     - _Shape: 5
+    - _Spread: 0
     - _Thick: 0.28
     m_Colors:
     - _Accent: {r: 1, g: 0.34999996, b: 0.20999995, a: 1}

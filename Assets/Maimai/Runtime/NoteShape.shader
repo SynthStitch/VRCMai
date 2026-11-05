@@ -9,6 +9,7 @@ Shader "Maimai/NoteShape"
         _Thick ("Ring thickness", Range(0.05, 1)) = 0.28
         _Accent ("Ring progress colour", Color) = (1,0.35,0.21,1)
         _Progress ("Ring progress", Range(0, 1)) = 0
+        _Spread ("Touch spread (per renderer)", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -24,7 +25,7 @@ Shader "Maimai/NoteShape"
             #include "UnityCG.cginc"
 
             fixed4 _Color, _Accent;
-            float _Shape, _Thick, _Progress;
+            float _Shape, _Thick, _Progress, _Spread;
 
             struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
             v2f vert (appdata_base v) { v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.uv = v.texcoord.xy; return o; }
@@ -50,10 +51,11 @@ Shader "Maimai/NoteShape"
                     float rs = 0.42 + 0.54 * pow(0.5 + 0.5 * cos(5 * th), 2.2);
                     a = 1 - smoothstep(rs - aa, rs, r);
                 }
-                else if (s == 2)       // hexagon ring
+                else if (s == 2)       // hold: hexagon ring pointed along the lane (+y), sides stretch with the quad's y scale
                 {
-                    float2 q = abs(p);
-                    float d = max(q.x * 0.866 + q.y * 0.5, q.y);
+                    float L = length(unity_ObjectToWorld._m01_m11_m21) / length(unity_ObjectToWorld._m00_m10_m20);
+                    float2 q = float2(abs(p.x), max(abs(p.y * L) - (L - 1), 0));
+                    float d = max(q.y * 0.866 + q.x * 0.5, q.x) * 1.04; // tip stays inside the quad
                     float ad = fwidth(d) * 1.5;
                     a = band(d, 0.9 - _Thick, 0.9, ad);
                 }
@@ -62,12 +64,18 @@ Shader "Maimai/NoteShape"
                     float ax = fwidth(p.x) * 1.5;
                     a = (1 - smoothstep(0.55, 0.55 + ax, abs(p.x))) * 0.85;
                 }
-                else if (s == 4)       // touch: 4 arrowheads pointing at a centre dot
+                else if (s == 4)       // touch: 4 wedges slide in from _Spread 1 and lock into a diamond around the dot at 0 (hit time)
                 {
-                    float2 q = abs(p);
-                    float diag = max(q.x, q.y);
-                    float tri = step(abs(q.x - q.y), 0.9 - diag) * step(0.55, diag) * step(diag, 0.95);
-                    a = max(tri, 1 - smoothstep(0.18 - aa, 0.18, r));
+                    float off = _Spread * 0.5;
+                    float v1 = abs(p.y) - off, v2 = abs(p.x) - off;
+                    float t1 = min(v1 - abs(p.x) - 0.05, 0.44 - v1);   // > 0 inside a wedge (tip toward the centre)
+                    float t2 = min(v2 - abs(p.y) - 0.05, 0.44 - v2);
+                    float tri = max(t1, t2), ad = fwidth(tri) * 1.5;
+                    float fill = smoothstep(0, ad, tri);
+                    col = lerp(fixed3(1, 1, 1), _Color.rgb, smoothstep(0.035, 0.035 + ad, tri)); // white rim
+                    float dot = 1 - smoothstep(0.11 - aa, 0.11, r);
+                    col = dot > fill ? fixed3(1, 1, 1) : col;
+                    a = max(fill * 0.95, dot) * saturate((1 - _Spread) * 4); // fade in over the first quarter
                 }
                 else if (s == 6)       // dotted judge ring (128 dots, bigger at the 8 lanes), lit _Accent up to _Progress
                 {

@@ -82,6 +82,7 @@ public static class MaiBatchPreview
         typeof(MaiGame).GetField("poolR", bf).SetValue(game, rmeth.Invoke(game, new object[] { game.pool }));
         typeof(MaiGame).GetField("barR", bf).SetValue(game, rmeth.Invoke(game, new object[] { game.bars }));
         typeof(MaiGame).GetField("touchR", bf).SetValue(game, rmeth.Invoke(game, new object[] { game.touchPool }));
+        typeof(MaiGame).GetField("touchMpb", bf).SetValue(game, new MaterialPropertyBlock());
         typeof(MaiGame).GetMethod("Draw", bf).Invoke(game, new object[] { pt, true });
         typeof(MaiGame).GetMethod("InitSlots", bf).Invoke(game, null);
         typeof(MaiGame).GetMethod("ResetSlides", bf).Invoke(game, null);
