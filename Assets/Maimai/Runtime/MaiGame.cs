@@ -50,7 +50,8 @@ public class MaiGame : UdonSharpBehaviour
     public TextMeshPro hudBigLabel, hudBig, hudStats; // top screen cards 02 (achievement) and 03 (judge counts)
     public Material ringMat;         // dotted judge ring, _Progress = song progress
     public float radius = 0.35f;     // judge ring radius (screen-local units)
-    public float approach = 0.8f;    // seconds a lane note travels centre -> ring
+    public float approach = 0.52f;   // seconds a lane note is visible (grow at spawn + travel to ring)
+    float noteV = 2.43f;             // travel speed in judge-ring radii per second
     public float touchApproach = 0.6f; // seconds a touch note's marker shrinks in
     public float noteSize = 0.09f;
 
@@ -111,7 +112,8 @@ public class MaiGame : UdonSharpBehaviour
     string lastJudge = "";
     int[] handLane;
     VRC_Pickup[] ballPickups;
-    float lastRaw = -1f, lastRawReal;
+    float lastRaw = -1f, lastRawReal, lastSeek;
+    bool audioStarted;
     float nextSync;
     Renderer[] poolR, barR, touchR;
     long sensorMask;
@@ -186,8 +188,10 @@ public class MaiGame : UdonSharpBehaviour
 
     void ApplySpeed()
     {
-        approach = 5.6f / speed;
-        touchApproach = approach * 0.75f;
+        // MajdataPlay speed curve (units/s, judge ring = 4.8 units)
+        noteV = 107.25f / (71.4184491f * Mathf.Pow(speed + 0.9975f, -0.985558604f)) / 4.8f;
+        approach = 1.265625f / noteV; // from scale 0 (-1.275 units) to the ring
+        touchApproach = 4.2f / speed;
     }
 
     void SettingsPress(int lane)
@@ -439,6 +443,7 @@ public class MaiGame : UdonSharpBehaviour
         ResetSlides();
         music.Stop();
         lastRaw = -1f;
+        audioStarted = false;
         UpdateHud();
     }
 
@@ -451,10 +456,11 @@ public class MaiGame : UdonSharpBehaviour
         float server = (Networking.GetServerTimeInMilliseconds() - startServerMs) / 1000f;
         if (!music.isPlaying)
         {
-            if (server >= 0f && server < music.clip.length)
+            if (!audioStarted && server >= 0f && server < music.clip.length)
             {
                 music.time = server;
                 music.Play();
+                audioStarted = true;
             }
             return server;
         }
@@ -463,7 +469,11 @@ public class MaiGame : UdonSharpBehaviour
         if (raw != lastRaw) { lastRaw = raw; lastRawReal = now; }
         float t = raw + (now - lastRawReal);
         // drift guard: if audio wandered from shared time (hitch, late join), snap it back
-        if (Mathf.Abs(t - server) > 0.1f) { music.time = server; lastRaw = -1f; return server; }
+        if (Mathf.Abs(t - server) > 0.1f)
+        {
+            if (now - lastSeek > 1f) { music.time = server; lastSeek = now; lastRaw = -1f; }
+            return server;
+        }
         return t;
     }
 
@@ -751,6 +761,8 @@ public class MaiGame : UdonSharpBehaviour
 
     // ---------- drawing (every client renders from the same chart + clock) ----------
 
+    const float Spawn = 0.2552f; // 1.225 / 4.8: where taps appear (edge of the inner sensors)
+
     void Draw(float t, bool owner)
     {
         while (drawHead < count && (nMs[drawHead] + nDur[drawHead]) / 1000f < t - 0.2f) drawHead++;
@@ -785,11 +797,12 @@ public class MaiGame : UdonSharpBehaviour
             if (ns >= pool.Length) continue;
             float ang = (22.5f + 45f * (nLane[i] - 1)) * Mathf.Deg2Rad;
             float sx = Mathf.Sin(ang), sy = Mathf.Cos(ang);
-            float p = Mathf.Clamp(1f - dt / approach, 0f, 1f);
+            float d = 1f - dt * noteV;                // distance from centre in radii (1 = ring)
+            float p = Mathf.Clamp(d, Spawn, 1f);
             int kind = nType[i] == 3 ? 1 : nType[i] == 2 ? 2 : 0;
             Transform tr = pool[ns];
             tr.localPosition = new Vector3(sx * radius * p, sy * radius * p, -0.01f);
-            float sz = noteSize * Mathf.Clamp01(0.3f + p);
+            float sz = noteSize * (d < Spawn ? Mathf.Clamp01(d * 1.92f + 0.51f) : 1f);
             tr.localScale = new Vector3(sz, sz, 1f);
             tr.localRotation = kind == 1 ? Quaternion.Euler(0, 0, spin) : Quaternion.identity;
             poolR[ns].sharedMaterial = noteMats[kind * 3 + variant];
@@ -798,7 +811,7 @@ public class MaiGame : UdonSharpBehaviour
 
             if (isHold && bs < bars.Length)
             {
-                float pt = Mathf.Clamp(1f - (start + nDur[i] / 1000f - t) / approach, 0f, 1f);
+                float pt = Mathf.Clamp(1f - (start + nDur[i] / 1000f - t) * noteV, Spawn, 1f);
                 if (p - pt > 0.001f)
                 {
                     Transform b = bars[bs];

@@ -25,7 +25,7 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _Progress: 0
+    - _Progress: 0.2433979
     - _Shape: 6
     - _Thick: 0.28
     m_Colors:

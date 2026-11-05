@@ -93,6 +93,7 @@ public class MajnetBrowser : EditorWindow
             s.loadType = AudioClipLoadType.CompressedInMemory;
             s.compressionFormat = AudioCompressionFormat.Vorbis;
             s.quality = 0.5f;
+            s.preloadAudioData = true; // off = clip not loaded when Udon calls Play -> silent in VRChat
             imp.defaultSampleSettings = s;
             imp.SaveAndReimport();
         }
