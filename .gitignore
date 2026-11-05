@@ -25,3 +25,9 @@
 # third-party content, not redistributed
 /Assets/Maimai/Charts/
 /Assets/Maimai/Charts.meta
+
+# build leftovers (regenerated)
+/Assets/_LastBuild/
+/Assets/_LastBuild.meta
+/Assets/_LockedShaderCache/
+/Assets/_LockedShaderCache.meta
