@@ -26,3 +26,9 @@
 /Assets/Maimai/Charts/
 /Assets/Maimai/Charts.meta
 /Assets/Scenes/PlayStation 2 - The Simpsons Skateboarding*
+
+# build leftovers (regenerated)
+/Assets/_LastBuild/
+/Assets/_LastBuild.meta
+/Assets/_LockedShaderCache/
+/Assets/_LockedShaderCache.meta
