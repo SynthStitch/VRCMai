@@ -76,9 +76,15 @@ public class MaiGame : UdonSharpBehaviour
     public float touchDepth = 0.06f; // how close to the screen plane a ball counts as touching
     public float leadInSec = 3f;
 
-    [UdonSynced] int startServerMs;
-    [UdonSynced] bool playing;
-    [UdonSynced] int song, level = 4;
+    [UdonSynced] public int startServerMs;   // public: P2 reads P1's start/song to follow it
+    [UdonSynced] public bool playing;
+    [UdonSynced] public int song;
+    [UdonSynced] int level = 4;
+
+    [Header("2 player")]
+    public MaiGame leader;           // set on P2 only: P1's cabinet. P2 can JOIN to play P1's song in sync.
+    [UdonSynced] bool joined, linked; // joined = waiting for P1's start; linked = this run follows P1 (music muted)
+    int leaderStart;
     [UdonSynced] int sCombo, sCrit, sPerf, sGreat, sGood, sMiss; // owner's result, for spectators
     [UdonSynced] int sLost, sLostB, sDxLost, sMaxCombo, sFast, sLate;
 
@@ -200,9 +206,17 @@ public class MaiGame : UdonSharpBehaviour
         touchApproach = 4.2f / speed;
     }
 
+    // P2 owner, every frame: start with P1, keep the song in step while joined, take over the music if P1 stops
+    void FollowCheck()
+    {
+        if (!playing && joined && leader.playing && leader.startServerMs != leaderStart) { FollowLeader(); return; }
+        if (playing && linked && !leader.playing) { linked = false; music.mute = false; RequestSerialization(); }
+        if (!playing && joined && song != leader.song) { song = leader.song; FixLevel(1); Select(); RequestSerialization(); UpdateHud(); }
+    }
+
     void SettingsPress(int lane)
     {
-        if (lane == 4) { menuPage = 0; StartSong(); return; }
+        if (lane == 4) { menuPage = 0; if (!joined) StartSong(); else UpdateHud(); return; } // joined: P1 starts
         if (lane == 5) menuPage = 0;
         else if (lane == 1 || lane == 8) setRow = 1 - setRow; // ponytail: 2 rows, up == down
         else
@@ -218,6 +232,8 @@ public class MaiGame : UdonSharpBehaviour
     {
         if (menuPage == 2) { menuPage = 0; UpdateHud(); return; } // any button closes the results
         if (menuPage == 1) { SettingsPress(lane); return; }
+        if (leader != null && lane == 5) { joined = !joined; RequestSerialization(); UpdateHud(); return; }
+        if (joined && (lane == 2 || lane == 3 || lane == 6 || lane == 7)) return; // song follows P1
         int n = songTitles.Length;
         if (lane == 2 || lane == 3) { song = (song + 1) % n; FixLevel(1); }
         else if (lane == 6 || lane == 7) { song = (song + n - 1) % n; FixLevel(1); }
@@ -397,7 +413,24 @@ public class MaiGame : UdonSharpBehaviour
 
     void StartSong()
     {
-        startServerMs = Networking.GetServerTimeInMilliseconds() + (int)(leadInSec * 1000);
+        linked = false;
+        StartAt(Networking.GetServerTimeInMilliseconds() + (int)(leadInSec * 1000));
+    }
+
+    // P2: P1 just started and we're joined -> same song (our own difficulty), same start time, P1's speaker
+    void FollowLeader()
+    {
+        leaderStart = leader.startServerMs;
+        song = leader.song;
+        FixLevel(1);
+        Select();
+        linked = true;
+        StartAt(leaderStart);
+    }
+
+    void StartAt(int ms)
+    {
+        startServerMs = ms;
         playing = true;
         sCombo = sCrit = sPerf = sGreat = sGood = sMiss = sLost = sLostB = sDxLost = sMaxCombo = sFast = sLate = 0;
         menuPage = 0;
@@ -463,6 +496,7 @@ public class MaiGame : UdonSharpBehaviour
         music.Stop();
         lastRaw = -1f;
         audioStarted = false;
+        music.mute = linked; // linked P2 keeps its clock from its own (silent) source; P1 is the speaker
         UpdateHud();
     }
 
@@ -501,6 +535,7 @@ public class MaiGame : UdonSharpBehaviour
     void Update()
     {
         bool owner = Networking.IsOwner(gameObject);
+        if (leader != null && owner) FollowCheck();
         if (!playing)
         {
             if (menuPage == 2 && Time.time - resultAt > ResultSec) { menuPage = 0; UpdateHud(); }
@@ -1103,6 +1138,12 @@ public class MaiGame : UdonSharpBehaviour
             {
                 bool go = menuPage == 1 ? k == 3 : (k == 3 || k == 4);
                 string h = menuPage == 0 ? hints0[k] : menuPage == 1 ? hints1[k] : (go ? "NEXT" : "");
+                if (leader != null && menuPage == 0)
+                {
+                    if (k == 4) h = joined ? "LEAVE" : "JOIN";
+                    else if (joined && (k == 1 || k == 2 || k == 5 || k == 6)) h = "";
+                    go = k == 4 ? joined : k == 3;
+                }
                 hintTexts[k].text = "<color=" + (go ? Acc : "#D8D8D8") + ">" + h + "</color>";
             }
 
@@ -1129,7 +1170,8 @@ public class MaiGame : UdonSharpBehaviour
         }
         else if (menuPage == 0)
         {
-            center.text = "<size=55%>" + Label("01", "SELECT SONG") + "   <color=" + Dim + ">" + (song + 1) + "/" + songTitles.Length + "</color></size>\n" +
+            center.text = "<size=55%>" + (joined ? Label("01", "JOINED") + "   <color=" + Acc + ">WAITING FOR P1</color>"
+                                                 : Label("01", "SELECT SONG") + "   <color=" + Dim + ">" + (song + 1) + "/" + songTitles.Length + "</color>") + "</size>\n" +
                           "<b>" + songTitles[song] + "</b>\n<size=60%><color=" + Dim + ">" + Short(Artist(), 30) + "</color></size>\n" +
                           "<size=55%>" + Tabs() + "</size>";
             if (bigText != null) bigText.text = "<color=" + diffCols[level] + ">" + lv + "</color>";

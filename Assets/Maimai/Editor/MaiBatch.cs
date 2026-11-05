@@ -72,7 +72,7 @@ public static class MaiBatchPreview
         var game = GameObject.Find("MaiCabinet/StartButton").GetComponent<MaiGame>();
         foreach (var fx in game.sensorFx) fx.SetActive(fx.name == "E3" || fx.name == "B6");
         // real frame: load a chart and run MaiGame.Draw at time MAI_PREVIEW_T
-        var bf = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var bf = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance;
         string want = System.Environment.GetEnvironmentVariable("MAI_TEST_TITLE") ?? "老撸";
         float pt = float.Parse(System.Environment.GetEnvironmentVariable("MAI_PREVIEW_T") ?? "30", System.Globalization.CultureInfo.InvariantCulture);
         int song = System.Array.FindIndex(game.songTitles, s2 => s2.Contains(want)), lvl = 6;
@@ -117,6 +117,24 @@ public static class MaiBatchPreview
         cam.Render(); // refresh screen RT first
         var rt = new RenderTexture(1280, 960, 24);
         Save(eye, rt, outDir + "/preview_cabinet.png");
+
+        // both sides: P2 in its JOINED menu state, camera pulled back between the screens
+        var p2go = GameObject.Find("MaiCabinetP2/StartButton");
+        if (p2go != null)
+        {
+            var p2 = p2go.GetComponent<MaiGame>();
+            foreach (var f in new[] { ("song", (object)song), ("level", (object)3), ("playing", (object)false), ("joined", (object)true), ("menuPage", (object)0) })
+                typeof(MaiGame).GetField(f.Item1, bf).SetValue(p2, f.Item2);
+            typeof(MaiGame).GetMethod("BuildHud", bf).Invoke(p2, new object[] { true });
+            var cam2 = GameObject.Find("MaiCabinetP2/ScreenField/ScreenCamera").GetComponent<Camera>();
+            cam2.Render();
+            Save(cam2, cam2.targetTexture, outDir + "/preview_screen_p2.png");
+            Vector3 mid = (scr.position + p2.screen.position) * 0.5f;
+            eye.transform.position = mid - Vector3.ProjectOnPlane(scr.forward, Vector3.up).normalized * 1.5f + Vector3.up * 0.2f;
+            eye.transform.LookAt(mid + Vector3.up * 0.12f);
+            cam.Render();
+            Save(eye, rt, outDir + "/preview_both.png");
+        }
         EditorApplication.Exit(0);
     }
 
@@ -240,6 +258,21 @@ public static class MaiBatchTest
         for (int k = 0; k < 5; k++)
             if (expect[k] == 1 && g[k] != total) { Debug.LogError($"MAITEST [{name}] expected all grade {k}"); return false; }
         return true;
+    }
+}
+
+public static class MaiBatchP2
+{
+    public static void Run()
+    {
+        UdonSharpCompilerV1.CompileSync();
+        if (UdonSharp.UdonSharpProgramAsset.AnyUdonSharpScriptHasError()) { Debug.LogError("MAIBATCH U# errors, setup skipped"); EditorApplication.Exit(1); return; }
+        EditorSceneManager.OpenScene(MaiBatchWorld.World);
+        MaiP2Setup.Setup();
+        EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+        AssetDatabase.SaveAssets();
+        Debug.Log("MAIBATCH p2 done");
+        EditorApplication.Exit(0);
     }
 }
 

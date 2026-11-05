@@ -23,7 +23,7 @@ public static class MaiUiSetup
 
     public static void Setup()
     {
-        var game = GameObject.Find("MaiCabinet/StartButton").GetComponent<MaiGame>();
+        var game = MaiSide.Game();
         var noto = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(Fonts + "/NotoSansSC SDF.asset");
         var mono = FontAsset("SpaceMono-Regular.ttf", "SpaceMono SDF", noto, null);
         var dots = FontAsset("Doto.ttf", "Doto SDF", mono, noto);
@@ -36,7 +36,7 @@ public static class MaiUiSetup
         EditorUtility.SetDirty(panel);
 
         // ---------- main screen (playfield-local units, judge ring radius = game.radius) ----------
-        var play = GameObject.Find("MaiCabinet/ScreenField/Playfield").transform;
+        var play = GameObject.Find(MaiSide.Root + "/ScreenField/Playfield").transform;
         float r = game.radius;
         var labels = game.menuLabels.transform;
         Card(labels, "MenuCard", new Vector3(0, 0, -0.001f), new Vector2(r * 1.3f, r * 1.3f), panel);

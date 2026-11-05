@@ -16,9 +16,9 @@ public static class MaiNotesSetup
     [MenuItem("Maimai/Setup Notes (Stage 2)")]
     public static void Setup()
     {
-        var btn = GameObject.Find("MaiCabinet/StartButton");
+        var btn = GameObject.Find(MaiSide.Root + "/StartButton");
         var game = btn != null ? btn.GetComponent<MaiGame>() : null;
-        var play = GameObject.Find("MaiCabinet/ScreenField/Playfield");
+        var play = GameObject.Find(MaiSide.Root + "/ScreenField/Playfield");
         if (game == null || play == null) { Debug.LogError("Run Maimai/Setup Screen + Sensors (Stage 1) first"); return; }
         Directory.CreateDirectory(Gen);
 
@@ -73,7 +73,7 @@ public static class MaiNotesSetup
         game.noteMats = mats;
 
         // judge ring under the notes (quad uv radius 0.985 = game.radius)
-        string rp = Gen + "/JudgeRing.mat";
+        string rp = Gen + "/JudgeRing" + MaiSide.Suffix + ".mat"; // per side: _Progress is per player
         var rm = AssetDatabase.LoadAssetAtPath<Material>(rp);
         if (rm == null) { rm = new Material(shader); AssetDatabase.CreateAsset(rm, rp); }
         rm.shader = shader;

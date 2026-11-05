@@ -15,7 +15,6 @@ using UnityEngine.TextCore.LowLevel;
 public static class MaiScreenSetup
 {
     const string Gen = "Assets/Maimai/Generated";
-    static readonly Vector3 FieldOrigin = new Vector3(0, -500, 0);
     public const float BallRadius = 0.035f; // matches the 0.07 m hand balls
 
     public static readonly string[] SensorNames =
@@ -27,9 +26,9 @@ public static class MaiScreenSetup
     [MenuItem("Maimai/Setup Screen + Sensors (Stage 1)")]
     public static void Setup()
     {
-        var btn = GameObject.Find("MaiCabinet/StartButton");
-        var game = btn != null ? btn.GetComponent<MaiGame>() : null;
-        var disp = GameObject.Find("Display P1");
+        var game = MaiSide.Game();
+        var disp = GameObject.Find(MaiSide.Display);
+        Vector3 FieldOrigin = MaiSide.Field;
         if (game == null || disp == null) { Debug.LogError("Need MaiCabinet (Build + Align first) and Display P1"); return; }
         Directory.CreateDirectory(Gen);
         Transform screen = game.screen, root = game.transform.parent;
@@ -79,12 +78,12 @@ public static class MaiScreenSetup
         Vector2 topMid = new Vector2(lMid.x, lMax.y - visH * 0.5f);
         Vector2 topSize = new Vector2(lMax.x - lMin.x, visH);
 
-        string rtPath = Gen + "/MaiScreen.renderTexture";
+        string rtPath = Gen + "/MaiScreen" + MaiSide.Suffix + ".renderTexture";
         var rt = AssetDatabase.LoadAssetAtPath<RenderTexture>(rtPath);
         if (rt == null || rt.width != W || rt.height != H)
         {
             if (rt != null) AssetDatabase.DeleteAsset(rtPath);
-            rt = new RenderTexture(W, H, 16) { name = "MaiScreen", antiAliasing = 4 };
+            rt = new RenderTexture(W, H, 16) { name = "MaiScreen" + MaiSide.Suffix, antiAliasing = 4 };
             AssetDatabase.CreateAsset(rt, rtPath);
         }
         Undo.RecordObject(mat, "Screen material");
@@ -185,7 +184,7 @@ public static class MaiScreenSetup
             if (lm.name.StartsWith("LaneMark")) lm.sharedMaterial.shader = unlit;
 
         // ---------- 3. touch sensors ----------
-        BakeSensors(game, screen, play);
+        if (!MaiSide.IsP2) BakeSensors(game, screen, play); // P2 keeps the grid + glow shapes copied from P1
 
         // ---------- 4. button lights ----------
         // "Button Light N" are empty anchors (the cabinet model hung real lights on them). Put a glow disc on each,

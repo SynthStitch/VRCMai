@@ -186,15 +186,14 @@ public static class MaiSetup
 
     static MaiGame FindGame()
     {
-        var btn = GameObject.Find("MaiCabinet/StartButton");
-        var game = btn != null ? btn.GetComponent<MaiGame>() : null;
-        if (game == null) Debug.LogError("Run Maimai/Build Prototype Cabinet first");
+        var game = MaiSide.Game();
+        if (game == null) Debug.LogError("Run Maimai/Build Prototype Cabinet first (" + MaiSide.Root + ")");
         return game;
     }
 
     // Red/blue pickup balls = the player's hands. Avatar agnostic; desktop can grab them too.
     [MenuItem("Maimai/Add Hand Balls")]
-    static void AddBalls()
+    public static void AddBalls()
     {
         var game = FindGame();
         if (game == null) return;
@@ -239,11 +238,11 @@ public static class MaiSetup
 
     // Snap the playfield onto the model's "Display P1" (centre, facing, size) and hide the placeholder disc.
     [MenuItem("Maimai/Align To DX Model (Display P1)")]
-    static void Align()
+    public static void Align()
     {
         var game = FindGame();
-        var disp = GameObject.Find("Display P1");
-        if (game == null || disp == null) { Debug.LogError("Need MaiCabinet and a 'Display P1' object in the scene"); return; }
+        var disp = GameObject.Find(MaiSide.Display);
+        if (game == null || disp == null) { Debug.LogError("Need " + MaiSide.Root + " and a '" + MaiSide.Display + "' object in the scene"); return; }
         var mesh = disp.GetComponent<MeshFilter>().sharedMesh;
         var tr = disp.transform;
         var verts = mesh.vertices;
@@ -256,7 +255,7 @@ public static class MaiSetup
         n.Normalize();
         // make n point out of the cabinet, toward the player. The P1 shell sits behind and below the screen,
         // so its centre must be on the back side. (Whole-model bounds fail: the ground plate drags them forward.)
-        var bodyGo = GameObject.Find("Body P1");
+        var bodyGo = GameObject.Find(MaiSide.Body);
         Vector3 bodyC = bodyGo != null ? bodyGo.GetComponent<Renderer>().bounds.center : tr.root.position;
         if (Vector3.Dot(n, bodyC - c) > 0) n = -n;
 
@@ -394,7 +393,7 @@ public static class MaiSetup
     // Wire the model's "Button Hitbox N" objects nearest the P1 screen as the 8 lane buttons.
     // Lane is picked from each box's angle around the screen centre, so names/ordering don't matter.
     [MenuItem("Maimai/Use Cabinet Button Hitboxes")]
-    static void UseHitboxes()
+    public static void UseHitboxes()
     {
         var game = FindGame();
         if (game == null) return;
