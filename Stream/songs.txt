@@ -1,0 +1,5 @@
+# approved songs: <slot><TAB><folder in Assets/Maimai/Charts>. Only list songs whose creators said yes.
+# (local test entries - not published)
+0	Transcend_My_Love_3c6c9eff
+1	Memories_in_the_Dusk_9c53e5a5
+2	Sempre_Vivacissimo_1b7b06dc

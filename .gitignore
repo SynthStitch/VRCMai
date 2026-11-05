@@ -39,3 +39,6 @@
 /Assets/Scenes/MaiWorld/
 /Assets/Scenes/MaiWorld.meta
 
+
+# streamed-song site output (published separately once songs are approved)
+/Stream/site/
