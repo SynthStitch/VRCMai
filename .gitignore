@@ -31,3 +31,7 @@
 /Assets/_LastBuild.meta
 /Assets/_LockedShaderCache/
 /Assets/_LockedShaderCache.meta
+
+# AstroDX sample skin (no license, local only)
+/Assets/Maimai/Skin/
+/Assets/Maimai/Skin.meta

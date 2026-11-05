@@ -22,14 +22,23 @@ Material:
   m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
-    m_TexEnvs: []
+    m_TexEnvs:
+    - _DotTex:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _MainTex:
+        m_Texture: {fileID: 2800000, guid: 59777990743304b4f9cc60f557463bd9, type: 3}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
     - _Progress: 0
     - _Shape: 1
+    - _Skin: 1
     - _Spread: 0
     - _Thick: 0.28
     m_Colors:
     - _Accent: {r: 1, g: 0.34999996, b: 0.20999995, a: 1}
-    - _Color: {r: 1, g: 0.5, b: 0.12, a: 1}
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
   m_BuildTextureStacks: []

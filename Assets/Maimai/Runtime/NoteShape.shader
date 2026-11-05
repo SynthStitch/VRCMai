@@ -1,4 +1,5 @@
-// Procedural note shapes on a quad (uv 0..1). One material per shape/colour; no textures needed.
+// Note shapes on a quad (uv 0..1). One material per shape/colour. Procedural by default; _Skin 1 draws sprites
+// (AstroDX skin layout: hold = 9-slice along y, touch = one wedge sprite placed 4x + dot, arrow = 200x128 chevron).
 // _Shape: 0 ring (tap), 1 star (slide head), 2 hex ring (hold head), 3 bar (hold body), 4 touch (4 arrows + dot), 5 chevron, 6 judge ring
 Shader "Maimai/NoteShape"
 {
@@ -10,6 +11,9 @@ Shader "Maimai/NoteShape"
         _Accent ("Ring progress colour", Color) = (1,0.35,0.21,1)
         _Progress ("Ring progress", Range(0, 1)) = 0
         _Spread ("Touch spread (per renderer)", Range(0, 1)) = 0
+        _Skin ("Use sprite", Float) = 0
+        _MainTex ("Sprite", 2D) = "white" {}
+        _DotTex ("Touch dot sprite", 2D) = "white" {}
     }
     SubShader
     {
@@ -25,7 +29,47 @@ Shader "Maimai/NoteShape"
             #include "UnityCG.cginc"
 
             fixed4 _Color, _Accent;
-            float _Shape, _Thick, _Progress, _Spread;
+            float _Shape, _Thick, _Progress, _Spread, _Skin;
+            sampler2D _MainTex, _DotTex;
+
+            fixed4 over(fixed4 dst, fixed4 src) { return fixed4(lerp(dst.rgb, src.rgb, src.a), src.a + dst.a * (1 - src.a)); }
+
+            // touch wedge pointing at the centre, q rotated so this piece sits on +y; tip at y = off
+            fixed4 wedge(float2 q, float off)
+            {
+                float2 uv = float2(q.x / 0.8 + 0.5, (q.y - off) / 0.6);
+                float inside = step(0, uv.x) * step(uv.x, 1) * step(0, uv.y) * step(uv.y, 1);
+                return tex2D(_MainTex, uv) * inside;
+            }
+
+            fixed4 skin(float2 uv, float2 p, int s)
+            {
+                if (s == 2)   // hold: top/bottom halves of the sprite stay square, the middle row stretches
+                {
+                    float L = length(unity_ObjectToWorld._m01_m11_m21) / length(unity_ObjectToWorld._m00_m10_m20);
+                    float yy = (uv.y - 0.5) * L, dt = L * 0.5 - yy, db = yy + L * 0.5;
+                    float tv = dt < 0.5 ? 1 - dt : db < 0.5 ? db : 0.5;
+                    return tex2Dgrad(_MainTex, float2(uv.x, tv), ddx(uv), ddy(uv));
+                }
+                if (s == 4)   // touch: 4 wedges close in as _Spread -> 0, dot on top
+                {
+                    float off = 0.06 + _Spread * 0.3;
+                    fixed4 c = wedge(p, off);
+                    c = over(c, wedge(-p, off));
+                    c = over(c, wedge(float2(-p.y, p.x), off));
+                    c = over(c, wedge(float2(p.y, -p.x), off));
+                    float2 du = p / 0.36 + 0.5;
+                    c = over(c, tex2D(_DotTex, du) * step(abs(p.x), 0.18) * step(abs(p.y), 0.18));
+                    c.a *= saturate((1 - _Spread) * 4);
+                    return c;
+                }
+                if (s == 5)   // chevron sprite is 200x128: keep its aspect inside the square quad
+                {
+                    float tv = (uv.y - 0.5) / 0.64 + 0.5;
+                    return tex2D(_MainTex, float2(uv.x, tv)) * step(abs(tv - 0.5), 0.5);
+                }
+                return tex2D(_MainTex, uv);
+            }
 
             struct v2f { float4 pos : SV_POSITION; float2 uv : TEXCOORD0; };
             v2f vert (appdata_base v) { v2f o; o.pos = UnityObjectToClipPos(v.vertex); o.uv = v.texcoord.xy; return o; }
@@ -43,6 +87,7 @@ Shader "Maimai/NoteShape"
                 float a = 0;
                 fixed3 col = _Color.rgb;
                 int s = (int)round(_Shape);
+                if (_Skin > 0.5 && s != 3 && s != 6) { fixed4 k = skin(i.uv, p, s); return fixed4(k.rgb, k.a * _Color.a); }
                 if (s == 0)            // ring with a soft glow core
                     a = band(r, 1 - _Thick, 0.96, aa) + 0.12 * (1 - smoothstep(0.0, 1 - _Thick, r));
                 else if (s == 1)       // 5-point star
