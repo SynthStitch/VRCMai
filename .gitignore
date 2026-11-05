@@ -46,3 +46,6 @@
 # third-party Booth asset
 /Assets/SALVATOR/
 /Assets/SALVATOR.meta
+
+# streamed-song site output (published separately once songs are approved)
+/Stream/site/
