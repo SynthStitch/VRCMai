@@ -177,14 +177,23 @@ public static class MaiBatchTest
         ok &= Run(game, song, lvl, 0f, true, "perfect", new[] { 1, 0, 0, 0, 0 });
         ok &= Run(game, song, lvl, 0.040f, true, "40ms late (lane P, touch CP)", null);
         ok &= Run(game, song, lvl, 0f, false, "holds released halfway", null);
+        // streamed: the same chart cut out of the exported site file (Stream/site/c/000.txt = slot 0), as the world does
+        if (System.IO.File.Exists("Stream/site/c/000.txt") && game.songTitles[song].Contains("Transcend"))
+        {
+            streamText = (string)Call(game, "Section", System.IO.File.ReadAllText("Stream/site/c/000.txt"), lvl);
+            ok &= Run(game, song, lvl, 0f, true, "streamed slot 0", new[] { 1, 0, 0, 0, 0 });
+            streamText = null;
+        }
         Debug.Log("MAITEST " + (ok ? "PASS" : "FAIL"));
         EditorApplication.Exit(ok ? 0 : 1);
     }
 
     // expect: share of grades that must be 100% (index 0 CP .. 4 MISS), or null = just report
+    static string streamText;
     static bool Run(MaiGame game, int song, int lvl, float lateBy, bool holdFull, string name, int[] expect)
     {
-        Call(game, "LoadChart", game.charts[song * 7 + lvl]);
+        if (streamText != null) Call(game, "LoadChartText", streamText);
+        else Call(game, "LoadChart", game.charts[song * 7 + lvl]);
         Call(game, "ResetSlides");
         Set(game, "playing", true);
         Set(game, "lastHoldT", -1f);

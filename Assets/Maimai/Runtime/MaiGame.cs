@@ -22,6 +22,8 @@ using UdonSharp;
 using UnityEngine;
 using VRC.SDKBase;
 using TMPro;
+using VRC.SDK3.StringLoading;
+using VRC.Udon.Common.Interfaces;
 
 [UdonBehaviourSyncMode(BehaviourSyncMode.Manual)]
 public class MaiGame : UdonSharpBehaviour
@@ -83,7 +85,13 @@ public class MaiGame : UdonSharpBehaviour
 
     [Header("2 player")]
     public MaiGame leader;
-    public MaiScoreboard board;      // room TV: gets every result (single or VS)           // set on P2 only: P1's cabinet. P2 can JOIN to play P1's song in sync.
+    public MaiScoreboard board;      // room TV: gets every result (single or VS)
+    public MaiStream stream;         // online songs: listed after the built-in ones (song >= songTitles.Length)
+    string streamText;               // last downloaded chart file (all levels) and its slot
+    int streamSlot = -1, fetchSlot = -1;
+    bool chartReady = true, pendingStart;
+    float clipLen;
+    string streamErr = "";           // set on P2 only: P1's cabinet. P2 can JOIN to play P1's song in sync.
     [UdonSynced] bool joined, linked; // joined = waiting for P1's start; linked = this run follows P1 (music muted)
     int leaderStart;
     [UdonSynced] int sCombo, sCrit, sPerf, sGreat, sGood, sMiss; // owner's result, for spectators
@@ -180,22 +188,104 @@ public class MaiGame : UdonSharpBehaviour
     }
 
     // ---------- song select ----------
+    // ponytail: online songs are addressed by list position, so every client must have loaded the same index
+    // (it's read once at world load). Sync the slot number instead if the index starts changing mid-session.
+
+    int SongCount() { return songTitles.Length + (stream != null ? stream.count : 0); }
+    bool IsStream(int s) { return s >= songTitles.Length; }
+    string Title(int s) { return IsStream(s) ? stream.title[s - songTitles.Length] : songTitles[s]; }
+    string LvName(int s, int k) { return IsStream(s) ? stream.lv[(s - songTitles.Length) * 7 + k] : levelNames[s * 7 + k]; }
+    bool HasChart(int s, int k) { return IsStream(s) ? stream.lv[(s - songTitles.Length) * 7 + k] != "" : charts[s * 7 + k] != null; }
 
     void Select()
     {
+        if (song >= SongCount()) song = 0;
         loadedSong = song;
         loadedLevel = level;
         music.Stop();
-        music.clip = songClips[song];
-        LoadChart(charts[song * 7 + level]);
+        if (!IsStream(song))
+        {
+            music.clip = songClips[song];
+            clipLen = music.clip.length;
+            LoadChart(charts[song * 7 + level]);
+            chartReady = true;
+            return;
+        }
+        int i = song - songTitles.Length;
+        music.clip = null; // ponytail: online audio (video player) is step 3; until then the server clock drives play
+        clipLen = stream.seconds[i];
+        if (streamSlot == stream.slot[i]) { LoadChartText(Section(streamText, level)); chartReady = true; }
+        else { LoadChartText(""); chartReady = false; }
     }
+
+    // chart file = "@<level>" header lines, each followed by that level's baked chart
+    string Section(string t, int lv)
+    {
+        if (t == null) return "";
+        string key = "@" + (lv + 1) + "\n";
+        int a = t.StartsWith(key) ? 0 : t.IndexOf("\n" + key);
+        if (a < 0) return "";
+        a += (a == 0 ? 0 : 1) + key.Length;
+        int b = t.IndexOf("\n@", a);
+        return b < 0 ? t.Substring(a) : t.Substring(a, b - a);
+    }
+
+    void FetchChart()
+    {
+        if (stream == null || !IsStream(song)) return;
+        int sl = stream.slot[song - songTitles.Length];
+        if (fetchSlot == sl) return; // already on its way
+        fetchSlot = sl;
+        streamErr = "";
+        VRCStringDownloader.LoadUrl(stream.chartUrls[sl], (IUdonEventReceiver)this);
+    }
+
+    public override void OnStringLoadSuccess(IVRCStringDownload result)
+    {
+        streamText = result.Result;
+        streamSlot = fetchSlot;
+        fetchSlot = -1;
+        if (IsStream(song) && stream.slot[song - songTitles.Length] == streamSlot)
+        {
+            LoadChartText(Section(streamText, level));
+            chartReady = true;
+            if (pendingStart) { pendingStart = false; StartSong(); return; }
+            if (playing) ResetRun(); // spectator / P2 that started before the chart arrived
+        }
+        UpdateHud();
+    }
+
+    public override void OnStringLoadError(IVRCStringDownload result)
+    {
+        fetchSlot = -1;
+        pendingStart = false;
+        streamErr = result.Error;
+        UpdateHud();
+    }
+
+    // side screen: jump this cabinet to online song i (list position in the index)
+    public bool PickStream(int i)
+    {
+        if (playing || stream == null || i < 0 || i >= stream.count) return false;
+        TakeOver();
+        song = songTitles.Length + i;
+        menuPage = 0;
+        lastJudge = "";
+        FixLevel(1);
+        Select();
+        RequestSerialization();
+        UpdateHud();
+        return true;
+    }
+
+    public void StreamIndexChanged() { UpdateHud(); }
 
     // keep level on a difficulty this song actually has, searching in dir (+1 harder / -1 easier)
     void FixLevel(int dir)
     {
         for (int k = 0; k < 7; k++)
         {
-            if (charts[song * 7 + level] != null) return;
+            if (HasChart(song, level)) return;
             level = (level + dir + 7) % 7;
         }
     }
@@ -236,7 +326,7 @@ public class MaiGame : UdonSharpBehaviour
         if (menuPage == 1) { SettingsPress(lane); return; }
         if (leader != null && lane == 5) { joined = !joined; RequestSerialization(); UpdateHud(); return; }
         if (joined && (lane == 2 || lane == 3 || lane == 6 || lane == 7)) return; // song follows P1
-        int n = songTitles.Length;
+        int n = SongCount();
         if (lane == 2 || lane == 3) { song = (song + 1) % n; FixLevel(1); }
         else if (lane == 6 || lane == 7) { song = (song + n - 1) % n; FixLevel(1); }
         else if (lane == 1) { level = (level + 1) % 7; FixLevel(1); }
@@ -248,9 +338,11 @@ public class MaiGame : UdonSharpBehaviour
         UpdateHud();
     }
 
-    void LoadChart(TextAsset chart)
+    void LoadChart(TextAsset chart) { LoadChartText(chart.text); }
+
+    void LoadChartText(string text)
     {
-        string[] lines = chart.text.Split('\n');
+        string[] lines = text.Split('\n');
         int n = lines.Length;
         nMs = new int[n]; nLane = new int[n]; nType = new int[n]; nDur = new int[n]; nFlags = new int[n]; nSens = new int[n];
         nMask = new long[n]; nEach = new bool[n];
@@ -415,6 +507,7 @@ public class MaiGame : UdonSharpBehaviour
 
     void StartSong()
     {
+        if (!chartReady) { pendingStart = true; FetchChart(); UpdateHud(); return; } // starts when the chart lands
         linked = false;
         StartAt(Networking.GetServerTimeInMilliseconds() + (int)(leadInSec * 1000));
     }
@@ -427,6 +520,7 @@ public class MaiGame : UdonSharpBehaviour
         FixLevel(1);
         Select();
         linked = true;
+        if (!chartReady) FetchChart(); // play starts now; notes appear once the chart lands
         StartAt(leaderStart);
     }
 
@@ -481,6 +575,7 @@ public class MaiGame : UdonSharpBehaviour
     {
         if (song != loadedSong || level != loadedLevel) Select();
         if (playing && startServerMs != localStart) ResetRun();
+        if (playing && !chartReady) FetchChart();
         if (!playing && wasPlaying) ShowResults();
         wasPlaying = playing;
         if (!playing && music.isPlaying) StopLocal();
@@ -510,6 +605,7 @@ public class MaiGame : UdonSharpBehaviour
     float SongTime()
     {
         float server = (Networking.GetServerTimeInMilliseconds() - startServerMs) / 1000f;
+        if (music.clip == null) return server; // online song without audio yet
         if (!music.isPlaying)
         {
             if (!audioStarted && server >= 0f && server < music.clip.length)
@@ -545,7 +641,7 @@ public class MaiGame : UdonSharpBehaviour
             if (owner && songTitles.Length > 0) ReadInput(0f);
             return;
         }
-        if (startServerMs != localStart) return;
+        if (startServerMs != localStart || !chartReady) return;
         float t = SongTime() - offsetMs / 1000f;
 
         if (owner)
@@ -560,7 +656,7 @@ public class MaiGame : UdonSharpBehaviour
         if (lastJudge != "" && Time.time - judgeAt > 0.6f) { lastJudge = ""; UpdateHud(); }
         UpdateRing(t);
 
-        if (owner && t > Mathf.Min(endSec, music.clip.length + 0.5f)) { EndSong(); return; }
+        if (owner && t > Mathf.Min(endSec, clipLen + 0.5f)) { EndSong(); return; }
 
         if (owner && Time.time > nextSync)
         {
@@ -1033,8 +1129,8 @@ public class MaiGame : UdonSharpBehaviour
         int dx = dxMax - (owner ? dxLost : sDxLost), mc = owner ? maxCombo : sMaxCombo, fa = owner ? fast : sFast, la = owner ? late : sLate;
         VRCPlayerApi pl = Networking.GetOwner(gameObject);
         string who = pl != null ? pl.displayName : "";
-        string text = "<b>" + songTitles[song] + "</b>\n" +
-                      "<size=75%><color=" + diffCols[level] + ">●</color> " + diffNames[level] + " " + levelNames[song * 7 + level] + "</size>\n" +
+        string text = "<b>" + Title(song) + "</b>\n" +
+                      "<size=75%><color=" + diffCols[level] + ">●</color> " + diffNames[level] + " " + LvName(song, level) + "</size>\n" +
                       "<size=150%><color=#FFC94D><b>" + Rank(pct) + "</b></color></size>" + Badge(p, gr, gd, m) + "\n" +
                       "<size=75%><color=" + Dim + ">DX </color>" + dx + "<color=" + Dim + ">/" + dxMax + "   MAX COMBO </color>" + mc + "\n" +
                       "<color=#FFE36B>CRIT</color> " + c + "  <color=#FFA640>PERF</color> " + p + "  <color=#FF7AD0>GREAT</color> " + gr +
@@ -1122,6 +1218,7 @@ public class MaiGame : UdonSharpBehaviour
 
     string Artist()
     {
+        if (IsStream(song)) return stream.artist[song - songTitles.Length];
         string info = songInfo[song];
         int cut = info.IndexOf("  /  ");
         return cut >= 0 ? info.Substring(0, cut) : info;
@@ -1137,11 +1234,11 @@ public class MaiGame : UdonSharpBehaviour
         string tabs = "";
         for (int k = 0; k < 7; k++)
         {
-            if (charts[song * 7 + k] == null) continue;
+            if (!HasChart(song, k)) continue;
             if (tabs != "") tabs += "   ";
             tabs += k == level
                 ? "<color=" + diffCols[k] + "><b>" + diffNames[k] + "</b></color>"
-                : "<color=" + diffCols[k] + "70>" + levelNames[song * 7 + k] + "</color>";
+                : "<color=" + diffCols[k] + "70>" + LvName(song, k) + "</color>";
         }
         return tabs;
     }
@@ -1157,7 +1254,7 @@ public class MaiGame : UdonSharpBehaviour
         bool any = c + p + gr + gd + m > 0;
         float pct = Achievement(owner ? lost : sLost, owner ? lostB : sLostB);
         int dx = dxMax - (owner ? dxLost : sDxLost), mc = owner ? maxCombo : sMaxCombo;
-        string lv = levelNames[song * 7 + level];
+        string lv = LvName(song, level);
         if (menuLabels != null) menuLabels.SetActive(!playing);
         if (!playing && hintTexts != null && hintTexts.Length == 8)
             for (int k = 0; k < 8; k++)
@@ -1187,7 +1284,7 @@ public class MaiGame : UdonSharpBehaviour
         {
             int fa = owner ? fast : sFast, la = owner ? late : sLate;
             center.text = "<size=55%>" + Label("03", "RESULT") + "</size>\n" +
-                          "<b>" + songTitles[song] + "</b>\n" +
+                          "<b>" + Title(song) + "</b>\n" +
                           "<size=55%><color=" + diffCols[level] + ">●</color> " + diffNames[level] + " " + lv + "</size>\n" +
                           "<size=170%><color=#FFC94D><b>" + Rank(pct) + "</b></color></size>" + Badge(p, gr, gd, m) + "\n" +
                           "<size=55%><color=" + Dim + ">DX </color>" + dx + "<color=" + Dim + ">/" + dxMax + "   MAX COMBO </color>" + mc + "\n" +
@@ -1197,8 +1294,8 @@ public class MaiGame : UdonSharpBehaviour
         else if (menuPage == 0)
         {
             center.text = "<size=55%>" + (joined ? Label("01", "JOINED") + "   <color=" + Acc + ">WAITING FOR P1</color>"
-                                                 : Label("01", "SELECT SONG") + "   <color=" + Dim + ">" + (song + 1) + "/" + songTitles.Length + "</color>") + "</size>\n" +
-                          "<b>" + songTitles[song] + "</b>\n<size=60%><color=" + Dim + ">" + Short(Artist(), 30) + "</color></size>\n" +
+                                                 : Label("01", "SELECT SONG") + "   <color=" + Dim + ">" + (song + 1) + "/" + SongCount() + "</color>" + (pendingStart ? "  <color=" + Acc + ">LOADING…</color>" : streamErr != "" ? "  <color=" + Acc + ">LOAD FAILED</color>" : IsStream(song) ? "  <color=#6FB8FF>ONLINE</color>" : "")) + "</size>\n" +
+                          "<b>" + Title(song) + "</b>\n<size=60%><color=" + Dim + ">" + Short(Artist(), 30) + "</color></size>\n" +
                           "<size=55%>" + Tabs() + "</size>";
             if (bigText != null) bigText.text = "<color=" + diffCols[level] + ">" + lv + "</color>";
         }
@@ -1214,7 +1311,7 @@ public class MaiGame : UdonSharpBehaviour
 
         // ----- top screen: 01 song card / 02 achievement card / 03 judge card -----
         hud.text = "<size=55%>" + Label("01", playing ? "NOW PLAYING" : res ? "RESULT" : "SELECT SONG") + (playing && !owner ? "  <color=" + Acc + ">●</color> <color=" + Dim + ">SPECTATING</color>" : "") + "</size>\n" +
-                   "<b>" + songTitles[song] + "</b>\n" +
+                   "<b>" + Title(song) + "</b>\n" +
                    "<size=60%><color=" + Dim + ">" + Short(Artist(), 34) + "</color></size>\n" +
                    "<size=60%><color=" + diffCols[level] + ">●</color> " + diffNames[level] + " " + lv + "</size>";
         if (hudBigLabel != null) hudBigLabel.text = Label("02", playing ? "ACHIEVEMENT" : "LAST PLAY");

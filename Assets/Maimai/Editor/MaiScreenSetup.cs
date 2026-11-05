@@ -222,7 +222,8 @@ public static class MaiScreenSetup
 
         // start cube clear of the button ring (outer ring ~1.5x display radius)
         float rm = roundR * S;
-        game.transform.position = screen.position + screen.right * rm * 1.8f - screen.up * rm * 0.5f - screen.forward * 0.05f;
+        // outer side of each cabinet (the gap between them holds the online-songs screen)
+        game.transform.position = screen.position + screen.right * rm * (MaiSide.IsP2 ? 1.8f : -1.8f) - screen.up * rm * 0.5f - screen.forward * 0.05f;
 
         UdonSharpEditorUtility.CopyProxyToUdon(game);
         EditorUtility.SetDirty(game);
