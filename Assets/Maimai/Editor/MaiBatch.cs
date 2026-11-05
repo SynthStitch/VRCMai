@@ -92,7 +92,8 @@ public static class MaiBatchPreview
         // real HUD text from fake counts (MAI_PREVIEW_MENU=1 renders the song-select state)
         string mv = System.Environment.GetEnvironmentVariable("MAI_PREVIEW_MENU");
         bool menu = mv == "1" || mv == "2";
-        typeof(MaiGame).GetField("menuPage", bf).SetValue(game, mv == "2" ? 1 : 0);
+        typeof(MaiGame).GetField("menuPage", bf).SetValue(game, mv == "2" ? 1 : mv == "3" ? 2 : 0);
+        menu |= mv == "3"; // 3 = results screen
         typeof(MaiGame).GetMethod("ApplySpeed", bf).Invoke(game, null);
         typeof(MaiGame).GetField("song", bf).SetValue(game, song);
         typeof(MaiGame).GetField("level", bf).SetValue(game, lvl);

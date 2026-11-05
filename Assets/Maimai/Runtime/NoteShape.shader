@@ -53,7 +53,8 @@ Shader "Maimai/NoteShape"
                 }
                 if (s == 4)   // touch: 4 wedges close in as _Spread -> 0, dot on top
                 {
-                    float off = 0.06 + _Spread * 0.3;
+                    // the sprite's triangle tip sits ~45% up its texture, so off = -0.25 puts the tips at the centre (closed square)
+                    float off = -0.24 + _Spread * 0.36;
                     fixed4 c = wedge(p, off);
                     c = over(c, wedge(-p, off));
                     c = over(c, wedge(float2(-p.y, p.x), off));
