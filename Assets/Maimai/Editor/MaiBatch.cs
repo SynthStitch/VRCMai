@@ -9,7 +9,7 @@ using UnityEngine;
 
 public static class MaiBatch
 {
-    const string Scene = "Assets/Scenes/VRCDefaultWorldScene.unity";
+    const string Scene = MaiBatchWorld.World;
 
     public static void Compile()
     {
@@ -38,7 +38,7 @@ public static class MaiBatchDump
 {
     public static void Dump()
     {
-        EditorSceneManager.OpenScene("Assets/Scenes/VRCDefaultWorldScene.unity");
+        EditorSceneManager.OpenScene(MaiBatchWorld.World);
         var game = GameObject.Find("MaiCabinet/StartButton").GetComponent<MaiGame>();
         var screen = game.screen;
         var disp = GameObject.Find("Display P1");
@@ -68,7 +68,7 @@ public static class MaiBatchPreview
     public static void Preview()
     {
         string outDir = System.Environment.GetEnvironmentVariable("MAI_PREVIEW_DIR") ?? "Temp";
-        EditorSceneManager.OpenScene("Assets/Scenes/VRCDefaultWorldScene.unity");
+        EditorSceneManager.OpenScene(MaiBatchWorld.World);
         var game = GameObject.Find("MaiCabinet/StartButton").GetComponent<MaiGame>();
         foreach (var fx in game.sensorFx) fx.SetActive(fx.name == "E3" || fx.name == "B6");
         // real frame: load a chart and run MaiGame.Draw at time MAI_PREVIEW_T
@@ -146,7 +146,7 @@ public static class MaiBatchTest
 
     public static void AutoPlay()
     {
-        EditorSceneManager.OpenScene("Assets/Scenes/VRCDefaultWorldScene.unity");
+        EditorSceneManager.OpenScene(MaiBatchWorld.World);
         var game = GameObject.Find("MaiCabinet/StartButton").GetComponent<MaiGame>();
         string want = System.Environment.GetEnvironmentVariable("MAI_TEST_TITLE") ?? "老撸";
         int song = System.Array.FindIndex(game.songTitles, s => s.Contains(want));
@@ -249,7 +249,7 @@ public static class MaiBatchUi
     {
         UdonSharpCompilerV1.CompileSync();
         if (UdonSharp.UdonSharpProgramAsset.AnyUdonSharpScriptHasError()) { Debug.LogError("MAIBATCH U# errors, setup skipped"); EditorApplication.Exit(1); return; }
-        EditorSceneManager.OpenScene("Assets/Scenes/VRCDefaultWorldScene.unity");
+        EditorSceneManager.OpenScene(MaiBatchWorld.World);
         MaiUiSetup.SetupAll();
         EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
         AssetDatabase.SaveAssets();
@@ -264,7 +264,7 @@ public static class MaiBatchStage3
     {
         UdonSharpCompilerV1.CompileSync();
         if (UdonSharp.UdonSharpProgramAsset.AnyUdonSharpScriptHasError()) { Debug.LogError("MAIBATCH U# errors, setup skipped"); EditorApplication.Exit(1); return; }
-        EditorSceneManager.OpenScene("Assets/Scenes/VRCDefaultWorldScene.unity");
+        EditorSceneManager.OpenScene(MaiBatchWorld.World);
         MaiSetup.RebuildSongList();   // re-convert charts with slide bodies
         MaiNotesSetup.Setup();
         EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
@@ -280,7 +280,7 @@ public static class MaiBatchStage2
     {
         UdonSharpCompilerV1.CompileSync();
         if (UdonSharp.UdonSharpProgramAsset.AnyUdonSharpScriptHasError()) { Debug.LogError("MAIBATCH U# errors, setup skipped"); EditorApplication.Exit(1); return; }
-        EditorSceneManager.OpenScene("Assets/Scenes/VRCDefaultWorldScene.unity");
+        EditorSceneManager.OpenScene(MaiBatchWorld.World);
         MaiSetup.RebuildSongList();   // re-convert charts with the new flags column
         MaiNotesSetup.Setup();
         EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
