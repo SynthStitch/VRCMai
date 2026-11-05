@@ -47,6 +47,14 @@ public static class MaiNotesSetup
                 m.SetColor("_Color", c);
                 m.SetFloat("_Shape", k);
                 m.SetFloat("_Thick", k == 2 ? 0.3f : 0.28f);
+                // optional sprite skin in Assets/Maimai/Skin (AstroDX names: tap, tap_each, tap_break, ...)
+                string[] files = { "tap", "star", "hold", null, "touch", "arrow" };
+                string suf = v == 0 ? "" : v == 1 ? "_each" : "_break";
+                var tex = files[k] == null ? null : SkinTex(files[k] + suf);
+                m.SetFloat("_Skin", tex != null ? 1 : 0);
+                m.SetTexture("_MainTex", tex);
+                m.SetTexture("_DotTex", k == 4 ? SkinTex("touch_dot" + suf) : null);
+                if (tex != null) m.SetColor("_Color", Color.white);
                 EditorUtility.SetDirty(m);
                 mats[k * 3 + v] = m;
             }
@@ -108,6 +116,22 @@ public static class MaiNotesSetup
         EditorUtility.SetDirty(game);
         AssetDatabase.SaveAssets();
         Debug.Log($"Notes: {game.pool.Length} lane, {game.bars.Length} bars, {game.touchPool.Length} touch, {game.slideArrows.Length} arrows, {game.slideStars.Length} slide stars, {mats.Length} materials, {n} sensor centroids");
+    }
+
+    static Texture2D SkinTex(string name)
+    {
+        string p = "Assets/Maimai/Skin/" + name + ".png";
+        var imp = AssetImporter.GetAtPath(p) as TextureImporter;
+        if (imp == null) return null;
+        if (imp.wrapMode != TextureWrapMode.Clamp || !imp.alphaIsTransparency)
+        {
+            imp.textureType = TextureImporterType.Default;
+            imp.wrapMode = TextureWrapMode.Clamp;
+            imp.alphaIsTransparency = true;
+            imp.mipmapEnabled = true;
+            imp.SaveAndReimport();
+        }
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(p);
     }
 
     static Transform[] Pool(Transform parent, string name, int count)
