@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Runs SimaiParse outside Unity. "dotnet run" = self-check; with a maidata.txt arg = writes chart_1.txt beside it -->
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net9.0</TargetFramework><Nullable>disable</Nullable><ImplicitUsings>disable</ImplicitUsings></PropertyGroup>
+  <ItemGroup><Compile Include="..\..\Assets\Maimai\Editor\SimaiParse.cs" /><Compile Include="..\..\Assets\Maimai\Editor\SimaiSlides.cs" /></ItemGroup>
+</Project>

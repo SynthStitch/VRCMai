@@ -10,6 +10,7 @@
 /Poi/
 /Thry/
 *.csproj
+!/Tests/**/*.csproj
 *.sln
 *.pidb
 *.userprefs
