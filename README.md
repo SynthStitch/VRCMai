@@ -4,6 +4,8 @@ A maimai-style rhythm game world for VRChat, written in UdonSharp. You play on a
 hand-ball pickups, with up to two players side by side. Judging, scoring and note motion are ported from
 [MajdataPlay](https://github.com/LingFeng-bbben/MajdataPlay), so this project is licensed under **GPL-3.0** (see `LICENSE`).
 
+> *"This software has no affair with the big S four-letter company. Please support the arcade whenever you can."*
+
 > PC only. The world isn't optimized for Quest/Android.
 
 ## Features
