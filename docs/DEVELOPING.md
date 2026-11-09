@@ -28,7 +28,7 @@ Assets/Maimai/
   Fonts/              Space Mono, Doto, Noto Sans SC (+ TMP SDF assets)
   Generated/          materials, render textures, sensor meshes made by the setup tools
   Charts/             (not in git) one folder per song: maidata.txt, track.mp3, chart_N.txt, credits.txt
-Assets/Scenes/MaiWorld.unity   the world
+Assets/Scenes/MaiWorld.unity   (not in git) the author's world; batch scripts open it via MaiBatchWorld.World — point that at your scene
 Stream/songs.txt               slot -> chart folder list for the online site
 Tests/SimaiParseTest/          standalone .NET test of the simai parser and slide paths
 ```

@@ -43,3 +43,9 @@
 
 # streamed-song site output (published separately once songs are approved)
 /Stream/site/
+
+# the world itself (scene + cabinet model) stays local; the repo is the system only
+/Assets/Scenes/MaiWorld.unity
+/Assets/Scenes/MaiWorld.unity.meta
+/Tests/**/bin/
+/Tests/**/obj/

@@ -37,11 +37,19 @@ Touch notes and slides are hit by moving a ball through the screen's sensor area
 
 Requirements: **Unity 2022.3.22f1** and the **VRChat Creator Companion (VCC)**.
 
+This repo is **the system only**: scripts, shaders, setup tools and fonts. Your world scene, room and cabinet model
+are yours to bring.
+
 1. Clone the repo and add it to VCC as an existing project. VCC restores the packages listed in `Packages/vpm-manifest.json`.
-2. Add the assets that aren't in the repo (see [Not included](#not-included)): the cabinet model in your own folder, charts in `Assets/Maimai/Charts`, and optionally the room.
-3. Open `Assets/Scenes/MaiWorld.unity`.
-4. Run **Maimai → Rebuild Song List** after adding or removing charts.
-5. Build & upload with the VRChat SDK panel.
+2. Create or open your world scene, and add charts to `Assets/Maimai/Charts` (see *Adding songs* below).
+3. Pick a cabinet:
+   - **No model**: run **Maimai → Build Prototype Cabinet**. It creates a simple playable cabinet (and a VRCWorld + floor if the scene has none).
+   - **Your own cabinet model**: name its parts `Display P1` (screen), `Body P1`, `Button Hitbox…` and `ButtonLight…`. Then run **Build Prototype Cabinet → Align To DX Model → Use Cabinet Button Hitboxes**.
+4. Run **Setup Screen + Sensors → Setup Notes → Setup UI → Add Hand Balls**.
+5. Optional:
+   - **Setup Player 2**: the model needs a `Body P2` and `Display P2`.
+   - **Setup TV Scoreboard**: uses any mesh named `TV`.
+6. Build & upload with the VRChat SDK panel.
 
 Adding songs:
 - **Maimai → majdata.net Browser**: search, tick songs and Import. This downloads `maidata.txt` and `track.mp3`, writes `credits.txt`, sets the audio import (preload on) and rebuilds the list.
@@ -53,11 +61,12 @@ For the setup menus, the headless batch/test workflow and how the code is laid o
 
 ## Not included
 
-These are left out of git because they're third-party or not redistributable:
+The repo has no world. These stay local, either because they're third-party or because they're the author's own world:
 
 | What | Where it goes |
 |---|---|
-| maimai DX cabinet model | your own folder |
+| World scene (`MaiWorld.unity`) | `Assets/Scenes/` |
+| Cabinet model  | your own folder |
 | Charts and audio | `Assets/Maimai/Charts/` |
 | AstroDX sample skin | `Assets/Maimai/Skin/` (optional; procedural notes are used without it) |
 | VPM packages | `Packages/` (restored by VCC) |
