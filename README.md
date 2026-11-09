@@ -63,12 +63,12 @@ For the setup menus, the headless batch/test workflow and how the code is laid o
 
 ## Not included
 
-The repo has no world. These stay local, either because they're third-party or because they're the author's own world:
+The repo has no world and no third-party content. Bring these yourself:
 
 | What | Where it goes |
 |---|---|
-| World scene (`MaiWorld.unity`) | `Assets/Scenes/` |
-| Cabinet model  | your own folder |
+| Your world scene, room and props | anywhere under `Assets/` |
+| A cabinet model (optional; Build Prototype Cabinet works without one) | anywhere under `Assets/` |
 | Charts and audio | `Assets/Maimai/Charts/` |
 | AstroDX sample skin | `Assets/Maimai/Skin/` (optional; procedural notes are used without it) |
 | VPM packages | `Packages/` (restored by VCC) |

@@ -187,7 +187,7 @@ public static class MaiScreenSetup
         if (!MaiSide.IsP2) BakeSensors(game, screen, play); // P2 keeps the grid + glow shapes copied from P1
 
         // ---------- 4. button lights ----------
-        // "Button Light N" are empty anchors (the cabinet model hung real lights on them). Put a glow disc on each,
+        // "Button Light N" are empty anchors (the cabinet model hangs real lights on them). Put a glow disc on each,
         // facing the player, toggled while that button is held.
         var lights = new GameObject[8];
         var glow = MatUnlit("ButtonLightOn", new Color(1f, 0.95f, 0.5f));
